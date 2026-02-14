@@ -22,5 +22,5 @@ A live public deployment of this template is available at [https://durable-chat-
    ```
 4. Deploy the project
    ```bash
-   npx wrangler deploy
+   npm run deploy
    ```
