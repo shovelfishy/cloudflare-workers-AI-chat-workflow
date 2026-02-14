@@ -51,11 +51,10 @@
 	"private": true,
 	"scripts": {
 		"client:build": "vite build",
-		"client:dev": "vite dev",
 		"cf-typegen": "wrangler types ./src/server/worker-configuration.d.ts",
 		"check": "tsc --project src/client && tsc --project src/server && wrangler deploy --dry-run",
 		"dev": "vite dev",
-		"deploy": "wrangler deploy",
+		"deploy": "vite build && wrangler deploy",
 		"dev:worker": "wrangler dev"
 	}
 }
