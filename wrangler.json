@@ -1,31 +1,57 @@
 {
 	"compatibility_date": "2025-10-08",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
 	"main": "src/server/index.ts",
 	"name": "durable-chat-template",
 	"migrations": [
 		{
-			"new_sqlite_classes": ["Chat"],
+			"new_sqlite_classes": [
+				"Chat"
+			],
 			"tag": "v1"
+		},
+		{
+			"new_sqlite_classes": [
+				"MyAgent"
+			],
+			"tag": "v2"
 		}
 	],
 	"assets": {
-		"directory": "./public",
+		"directory": "./dist",
 		"binding": "ASSETS",
 		"not_found_handling": "single-page-application"
 	},
+	"ai": {
+		"binding": "AI"
+	},
 	"build": {
-		"command": "esbuild src/client/index.tsx --bundle --splitting --format=esm --platform=browser --outdir=public/dist"
+		"command": "vite build"
 	},
 	"durable_objects": {
 		"bindings": [
 			{
 				"class_name": "Chat",
 				"name": "Chat"
+			},
+			{
+				"class_name": "MyAgent",
+				"name": "MyAgent"
 			}
 		]
 	},
 	"observability": {
 		"enabled": true
 	},
-	"upload_source_maps": true
+	"upload_source_maps": true,
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "prod-d1-tutorial",
+			"database_id": "d6ca2270-912f-4454-82b4-23684d29b17b",
+			"remote": true
+		}
+	]
 }
