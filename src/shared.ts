@@ -2,7 +2,7 @@ export type ChatMessage = {
 	id: string;
 	content: string;
 	user: string;
-	role: "user" | "assistant";
+	role: "user" | "assistant" | "system";
 };
 
 export type Message =
@@ -19,6 +19,13 @@ export type Message =
 			content: string;
 			user: string;
 			role: "user" | "assistant";
+	  }
+	| {
+			type: "rename";
+			id: string;
+			userId: string;
+			old: string;
+			new: string;
 	  }
 	| {
 			type: "all";

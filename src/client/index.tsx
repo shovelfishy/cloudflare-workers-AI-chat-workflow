@@ -6,18 +6,17 @@ import {
     Routes,
     Route,
     Navigate,
-    Link,
     useParams,
-    redirect,
     useNavigate,
 } from "react-router";
 import { nanoid } from "nanoid";
-import { names, type ChatMessage, type Message } from "../shared";
+import { type ChatMessage, type Message } from "../shared";
 import Home from "./home";
 import "./index.css";
 import { Button } from "@/components/ui/button";
 import { Ring } from 'ldrs/react'
 import 'ldrs/react/Ring.css'
+import { FaArrowLeft } from "react-icons/fa";
 
 export async function checkChatroom(id: string) {
     if (!id) return false;
@@ -37,15 +36,30 @@ export async function createChatroom(id: string, name: string) {
     return true
 }
 
-function App() {
-    // const [name] = useState(names[Math.floor(Math.random() * names.length)]);
-    const [name] = useState(names[0]);
+type CurrentUser = {
+    id: string;
+    username: string;
+};
+
+async function getCurrentUser(): Promise<CurrentUser | null> {
+    const res = await fetch("/api/me");
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.user ?? null;
+}
+
+function App({ currentUser }: { currentUser: CurrentUser }) {
+    const [user, setUser] = useState<CurrentUser>(currentUser);
+    const [isAuthLoading, setIsAuthLoading] = useState(false);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [content, setContent] = useState("")
     const { room } = useParams();
     const chatBoxRef = useRef<HTMLDivElement | null>(null)
     const navigate = useNavigate();
 
+    useEffect(() => {
+        setUser(currentUser);
+    }, [currentUser]);
 
     useEffect(() => {
         if (!chatBoxRef.current) return
@@ -109,13 +123,58 @@ function App() {
         },
     });
 
+    useEffect(() => {
+        let cancelled = false;
+        const run = async () => {
+            if (!room) return;
+            const res = await fetch("/api/me/renames");
+            if (!res.ok) return;
+            const data = await res.json();
+            if (cancelled) return;
+            const renames = Array.isArray(data?.renames) ? data.renames : [];
+            if (renames.length === 0) return;
+            const oldest = renames[0];
+            const newest = renames[renames.length - 1];
+            if (!oldest?.old || !newest?.new) return;
+            if (oldest.old === newest.new) return;
+            socket.send(
+                JSON.stringify({
+                    type: "rename",
+                    userId: user.id,
+                    id: newest.id,
+                    old: oldest.old,
+                    new: newest.new,
+                } satisfies Message),
+            );
+        };
+        run();
+        return () => {
+            cancelled = true;
+        };
+    }, [room, socket]);
+
     return (
         <div className="flex flex-col h-screen w-screen justify-center items-center font-[Lexend]">
-
-            <div className="space-y-3 w-full flex-1 overflow-y-auto px-[30%] py-4" ref={chatBoxRef}>
+            <Button variant="ghost" className="absolute top-10 left-10 h-fit aspect-square group" onClick={() => navigate("/")}>
+                <FaArrowLeft className="size-8 text-gray-700 group-hover:text-gray-800 transition" />
+            </Button>
+            <div className="space-y-3 w-full flex-1 overflow-y-auto px-[30%] py-4 mt-6" ref={chatBoxRef}>
 
                 {messages.map((message) => {
-                    const isMine = message.user === name;
+                    if (message.role == "system"){
+                        return (
+                            <div
+                                key={message.id}
+                                className="flex justify-center my-6"
+                            >
+                                <div className="max-w-[90%] rounded-full border border-slate-300 bg-slate-100/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-slate-600 shadow-sm backdrop-blur">
+                                    {message.content}
+                                </div>
+                            </div>
+                        )
+                    }
+
+                    const isMine = message.user === user?.username;
                     return (
                         <div
                             key={message.id}
@@ -142,12 +201,16 @@ function App() {
                     className="flex gap-4 w-full justify-center"
                     onSubmit={(e) => {
                         e.preventDefault();
+                        if (!user) {
+                            navigate("/");
+                            return;
+                        }
                         if (!content.trim()) return
 
                         const chatMessage: ChatMessage = {
                             id: nanoid(8),
                             content: content,
-                            user: name,
+                            user: user.username,
                             role: "user",
                         };
                         setMessages((messages) => [...messages, chatMessage]);
@@ -166,12 +229,19 @@ function App() {
                     <input
                         type="text"
                         className="border-2 border-stone-500/40 px-4 py-2 rounded-2xl w-[80%] flex-1"
-                        placeholder={`Hello ${name}! Type a message...`}
+                        placeholder={
+                            user
+                                ? `Hello ${user.username}! Type a message...`
+                                : "Type a message..."
+                        }
                         autoComplete="off"
                         value={content}
                         onChange={(e) => setContent(e.target.value)}
                     />
-                    <Button disabled={!content.trim()} className="h-auto">
+                    <Button
+                        disabled={!content.trim() || !user || isAuthLoading}
+                        className="h-auto"
+                    >
                         Send
                     </Button>
                 </form>
@@ -180,18 +250,23 @@ function App() {
     );
 }
 
-function RoomGuard({ children }: { children: React.ReactNode }) {
+function RoomGuard() {
     const { room } = useParams();
     const [isChecking, setIsChecking] = useState(true);
     const [exists, setExists] = useState(false);
-    console.log(room)
+    const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+    
     useEffect(() => {
         let cancelled = false;
         const run = async () => {
             setIsChecking(true);
-            const ok = await checkChatroom(room ?? "");
+            const [ok, currentUser] = await Promise.all([
+                checkChatroom(room ?? ""),
+                getCurrentUser(),
+            ]);
             if (cancelled) return;
             setExists(ok);
+            setCurrentUser(currentUser);
             if (!ok){
                 await new Promise(resolve => setTimeout(resolve, 1500));
             }
@@ -218,8 +293,8 @@ function RoomGuard({ children }: { children: React.ReactNode }) {
         );
     }
 
-    if (!exists) return <Navigate to="/" replace />;
-    return <>{children}</>;
+    if (!exists || !currentUser) return <Navigate to="/" replace />;
+    return <App currentUser={currentUser} />;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -227,14 +302,7 @@ createRoot(document.getElementById("root")!).render(
     <BrowserRouter>
         <Routes>
             <Route path="/" element={<Home />} />
-            <Route
-                path="/:room"
-                element={
-                    <RoomGuard>
-                        <App />
-                    </RoomGuard>
-                }
-            />
+            <Route path="/:room" element={<RoomGuard />} />
             <Route path="*" element={<Navigate to="/" />} />
         </Routes>
     </BrowserRouter>,

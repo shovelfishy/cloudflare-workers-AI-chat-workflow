@@ -1,6 +1,6 @@
 # App Description
 
-Collaborative AI chat that can initiate automated workflows
+A lightweight, friendly chat app with rooms, accounts, and an AI agent that can initiate automated workflows. This project was built on Cloudflare Workers + Durable Objects + D1 Database.
 
 ## Live Demo
 

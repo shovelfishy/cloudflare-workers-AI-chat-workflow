@@ -49,8 +49,8 @@
 	"d1_databases": [
 		{
 			"binding": "DB",
-			"database_name": "prod-d1-tutorial",
-			"database_id": "d6ca2270-912f-4454-82b4-23684d29b17b",
+			"database_name": "cf_ai_worker_d1",
+			"database_id": "d3d1c5d4-a4e7-4810-98a1-51eaf65e6b4b",
 			"remote": true
 		}
 	]
